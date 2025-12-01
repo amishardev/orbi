@@ -1,0 +1,106 @@
+{
+  "placeholderImages": [
+    {
+      "id": "user-avatar-1",
+      "description": "Avatar for Sarah Lee",
+      "imageUrl": "https://picsum.photos/seed/101/200/200",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "user-avatar-2",
+      "description": "Avatar for Alex Chen",
+      "imageUrl": "https://picsum.photos/seed/102/200/200",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "user-avatar-3",
+      "description": "Avatar for Maria Garcia",
+      "imageUrl": "https://picsum.photos/seed/103/200/200",
+      "imageHint": "woman smiling"
+    },
+    {
+      "id": "user-avatar-4",
+      "description": "Avatar for David Kim",
+      "imageUrl": "https://picsum.photos/seed/104/200/200",
+      "imageHint": "man glasses"
+    },
+    {
+      "id": "user-profile-cover-1",
+      "description": "Profile cover for Sarah Lee",
+      "imageUrl": "https://picsum.photos/seed/201/1200/400",
+      "imageHint": "workspace desk"
+    },
+    {
+      "id": "post-image-1",
+      "description": "A developer's workspace with a laptop and coffee",
+      "imageUrl": "https://picsum.photos/seed/301/800/600",
+      "imageHint": "laptop code"
+    },
+    {
+      "id": "post-image-2",
+      "description": "A group of people hiking on a mountain trail",
+      "imageUrl": "https://picsum.photos/seed/302/800/600",
+      "imageHint": "people hiking"
+    },
+    {
+      "id": "post-image-3",
+      "description": "Close-up of a freshly baked croissant",
+      "imageUrl": "https://picsum.photos/seed/303/800/600",
+      "imageHint": "food pastry"
+    },
+    {
+      "id": "post-image-4",
+      "description": "A person painting on a canvas in an art studio",
+      "imageUrl": "https://picsum.photos/seed/304/800/600",
+      "imageHint": "artist painting"
+    },
+    {
+      "id": "community-avatar-1",
+      "description": "Avatar for Next.js Developers community",
+      "imageUrl": "https://picsum.photos/seed/401/200/200",
+      "imageHint": "code abstract"
+    },
+    {
+      "id": "community-banner-1",
+      "description": "Banner for Next.js Developers community",
+      "imageUrl": "https://picsum.photos/seed/501/1200/300",
+      "imageHint": "code screen"
+    },
+    {
+      "id": "community-avatar-2",
+      "description": "Avatar for Outdoor Adventurers community",
+      "imageUrl": "https://picsum.photos/seed/402/200/200",
+      "imageHint": "mountain logo"
+    },
+    {
+      "id": "community-banner-2",
+      "description": "Banner for Outdoor Adventurers community",
+      "imageUrl": "https://picsum.photos/seed/502/1200/300",
+      "imageHint": "mountain landscape"
+    },
+    {
+      "id": "community-avatar-3",
+      "description": "Avatar for Bay Area Bakers community",
+      "imageUrl": "https://picsum.photos/seed/403/200/200",
+      "imageHint": "bread logo"
+    },
+    {
+      "id": "community-banner-3",
+      "description": "Banner for Bay Area Bakers community",
+      "imageUrl": "https://picsum.photos/seed/503/1200/300",
+      "imageHint": "kitchen baking"
+    },
+    {
+      "id": "community-avatar-4",
+      "description": "Avatar for Digital Artists Collective",
+      "imageUrl": "https://picsum.photos/seed/404/200/200",
+      "imageHint": "paint brush"
+    },
+    {
+      "id": "community-banner-4",
+      "description": "Banner for Digital Artists Collective",
+      "imageUrl": "https://picsum.photos/seed/504/1200/300",
+      "imageHint": "abstract art"
+    }
+  ]
+}
