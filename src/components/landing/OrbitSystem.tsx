@@ -24,5 +24,21 @@ export function OrbitSystem() {
                     animate={{ rotate: 360 }}
                     transition={{
                         duration: 20 + i * 10,
+                        repeat: Infinity,
+                        ease: "linear",
+                        repeatType: "loop"
+                    }}
+                >
+                    {/* Satellites */}
+                    <motion.div
+                        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)]"
+                        style={{ transformOrigin: '50% 50%' }}
+                    />
+                </motion.div>
+            ))}
+
+            {/* Background Glow */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 via-transparent to-orange-500/10 blur-3xl rounded-full" />
+        </div>
     );
 }
