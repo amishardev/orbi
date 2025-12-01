@@ -218,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (authUser && userData && (isAuthPage || isPublicPage)) {
       router.replace('/home');
-    } else if (!authUser && !isAuthPage && !isPublicPage) {
+    } else if (!authUser && !isAuthPage && !isPublicPage && !pathname.startsWith('/admin')) {
       router.replace('/landing');
     }
   }, [authUser, userData, loading, pathname, router]);

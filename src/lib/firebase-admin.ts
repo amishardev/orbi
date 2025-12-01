@@ -5,27 +5,47 @@ import { getAuth } from "firebase-admin/auth";
 
 function createFirebaseAdminApp() {
     if (getApps().length === 0) {
-        let serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        // Option 1: Standalone Private Key (Most efficient for Netlify 4KB limit)
+        let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+        if (privateKey) {
+            try {
+                // Handle Base64 encoding
+                if (!privateKey.trim().startsWith('-')) {
+                    privateKey = Buffer.from(privateKey, 'base64').toString('utf8');
+                }
+
+                const credential = cert({
+                    projectId: 'econslayer',
+                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL || 'firebase-adminsdk-fbsvc@econslayer.iam.gserviceaccount.com',
+                    privateKey: privateKey.replace(/\\n/g, '\n'),
+                });
+
+                console.log("[ADMIN SDK] Initializing with Private Key for project: econslayer");
+                return initializeApp({
+                    credential,
+                    projectId: 'econslayer'
+                });
+            } catch (error) {
+                console.error("[ADMIN SDK] Failed to parse FIREBASE_PRIVATE_KEY:", error);
+            }
+        }
+
+        // Option 2: Full JSON Blob (Legacy/Local)
+        let serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_SERVICE_ACCOUNT;
 
         if (serviceAccountKey) {
             try {
                 // Handle Base64 encoded JSON (common for Netlify/Vercel env vars)
                 if (!serviceAccountKey.trim().startsWith('{')) {
                     try {
-                        const buffer = Buffer.from(serviceAccountKey, 'base64');
-                        const decoded = buffer.toString('utf-8');
-                        // Check if decoded string looks like JSON
-                        if (decoded.trim().startsWith('{')) {
-                            serviceAccountKey = decoded;
-                        }
+                        serviceAccountKey = Buffer.from(serviceAccountKey, 'base64').toString('utf8');
                     } catch (e) {
-                        // If base64 decode fails, assume it's just a malformed string or raw key
                         console.warn("[ADMIN SDK] Failed to base64 decode key, attempting raw parse.");
                     }
                 }
 
                 const credential = cert(JSON.parse(serviceAccountKey));
-                console.log("[ADMIN SDK] Initializing with Service Account for project: econslayer");
+                console.log("[ADMIN SDK] Initializing with Service Account JSON for project: econslayer");
                 return initializeApp({
                     credential,
                     projectId: 'econslayer'
@@ -36,7 +56,7 @@ function createFirebaseAdminApp() {
                 return null;
             }
         } else {
-            console.warn("[ADMIN SDK] FIREBASE_SERVICE_ACCOUNT_KEY not found. Skipping Admin SDK initialization.");
+            console.warn("[ADMIN SDK] No credentials found (FIREBASE_PRIVATE_KEY or FIREBASE_SERVICE_ACCOUNT). Skipping Admin SDK initialization.");
             return null;
         }
     }
