@@ -62,19 +62,25 @@ function PostSkeleton() {
   );
 }
 
-export function PostCard({ postId }: { postId: string }) {
+export const PostCard = React.memo(function PostCard({ postId, post: initialPost }: { postId?: string; post?: Post }) {
   const { authUser, userData } = useAuth();
-  const [post, setPost] = useState<Post | null>(null);
+  const [post, setPost] = useState<Post | null>(initialPost || null);
   const [userReaction, setUserReaction] = useState<ReactionEmoji | null>(null);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [displayTimestamp, setDisplayTimestamp] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialPost);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const isAuthor = post?.userId === authUser?.uid;
 
   useEffect(() => {
+    if (initialPost) {
+      setPost(initialPost);
+      setLoading(false);
+      return;
+    }
+
     if (!postId || !db) {
       setLoading(false);
       return;
@@ -84,31 +90,35 @@ export function PostCard({ postId }: { postId: string }) {
       if (doc.exists()) {
         const postData = { id: doc.id, ...doc.data() } as Post;
         setPost(postData);
-
-        if (authUser && postData.reactions) {
-          let reaction = null;
-          for (const emoji in postData.reactions) {
-            const reactionList = postData.reactions[emoji as ReactionEmoji];
-            if (Array.isArray(reactionList) && reactionList.includes(authUser.uid)) {
-              reaction = emoji as ReactionEmoji;
-              break;
-            }
-          }
-          setUserReaction(reaction);
-        }
-
-        if (postData.createdAt) {
-          setDisplayTimestamp(`${formatDistanceToNow((postData.createdAt as Timestamp).toDate())} ago`);
-        } else {
-          setDisplayTimestamp('Just now');
-        }
       } else {
         setPost(null);
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [postId, authUser]);
+  }, [postId, initialPost]);
+
+  useEffect(() => {
+    if (post && authUser && post.reactions) {
+      let reaction = null;
+      for (const emoji in post.reactions) {
+        const reactionList = post.reactions[emoji as ReactionEmoji];
+        if (Array.isArray(reactionList) && reactionList.includes(authUser.uid)) {
+          reaction = emoji as ReactionEmoji;
+          break;
+        }
+      }
+      setUserReaction(reaction);
+    } else {
+      setUserReaction(null);
+    }
+
+    if (post && post.createdAt) {
+      setDisplayTimestamp(`${formatDistanceToNow((post.createdAt as Timestamp).toDate())} ago`);
+    } else if (post) {
+      setDisplayTimestamp('Just now');
+    }
+  }, [post, authUser]);
 
 
   const handleReaction = async (selectedEmoji: ReactionEmoji) => {
@@ -299,10 +309,12 @@ export function PostCard({ postId }: { postId: string }) {
   const postAuthorName = post.authorDisplayName || post.username || 'User';
   const postAuthorAvatar = post.authorPhotoURL || `https://picsum.photos/seed/${post.userId}/200/200`;
 
+  const isTextOnly = !post.embed && !post.mediaUrl && (!post.mediaUrls || post.mediaUrls.length === 0);
+
   return (
     <>
       <Card className={`overflow-hidden shadow-sm ${post.bgColorClassName || 'bg-card'}`}>
-        <CardHeader className="flex flex-row items-center gap-4 p-6">
+        <CardHeader className="flex flex-row items-center gap-4 p-3 md:p-6">
           <Avatar className='w-12 h-12'>
             <AvatarImage src={postAuthorAvatar} alt={postAuthorName} />
             <AvatarFallback>
@@ -345,9 +357,9 @@ export function PostCard({ postId }: { postId: string }) {
             </DropdownMenu>
           )}
         </CardHeader>
-        <CardContent className="px-6 pb-4 space-y-4">
+        <CardContent className="px-3 pb-2 md:px-6 md:pb-4 space-y-4">
           {post.caption && (
-            <p className="whitespace-pre-wrap">{renderCaption(post.caption)}</p>
+            <p className={`whitespace-pre-wrap ${isTextOnly ? 'mb-2' : ''}`}>{renderCaption(post.caption)}</p>
           )}
           {post.embed && <EmbedRenderer embed={post.embed} />}
           {post.mediaUrls && post.mediaUrls.length > 1 ? (
@@ -394,7 +406,7 @@ export function PostCard({ postId }: { postId: string }) {
           )}
         </CardContent>
         {((post.commentsCount && post.commentsCount > 0) || (post.reactions && Object.values(post.reactions).some(r => Array.isArray(r) && r.length > 0))) && (
-          <div className="px-6 pb-4 flex justify-between items-center text-sm text-muted-foreground">
+          <div className="hidden md:flex px-3 pb-2 md:px-6 md:pb-4 justify-between items-center text-sm text-muted-foreground">
             {renderReactions()}
             {post.commentsCount > 0 && (
               <button
@@ -406,42 +418,54 @@ export function PostCard({ postId }: { postId: string }) {
             )}
           </div>
         )}
-        <div className="px-6 pb-2">
+        <div className="px-3 pb-2 md:px-6">
           <div className="h-px bg-border w-full" />
         </div>
-        <CardFooter className="flex justify-around p-2">
-          <ReactionPicker onSelect={handleReaction}>
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full rounded-md font-semibold text-muted-foreground",
-                userReaction && 'font-bold',
-                userReaction === '👍' && 'text-blue-500',
-                userReaction === '❤️' && 'text-red-500',
-                userReaction === '😂' && 'text-yellow-500',
-                userReaction === '💀' && 'text-gray-500',
-                userReaction === '🔥' && 'text-orange-500',
-                userReaction === '😍' && 'text-pink-500',
-                userReaction === '🗿' && 'text-stone-500',
-              )}
-              onClick={() => handleReaction(userReaction ? userReaction : '👍')}
-            >
-              {userReaction ? (
-                <span className="text-xl mr-2">{userReaction}</span>
-              ) : (
-                <ThumbsUp className="mr-2 h-5 w-5" />
-              )}
-              {userReaction ? 'Reacted' : 'Like'}
+        <CardFooter className="flex justify-between items-center p-2">
+          <div className="flex gap-0 md:contents">
+            <ReactionPicker onSelect={handleReaction}>
+              <Button
+                variant="ghost"
+                className={cn(
+                  "w-auto md:w-full rounded-md font-semibold text-muted-foreground px-2 md:px-4",
+                  userReaction && 'font-bold',
+                  userReaction === '👍' && 'text-blue-500',
+                  userReaction === '❤️' && 'text-red-500',
+                  userReaction === '😂' && 'text-yellow-500',
+                  userReaction === '💀' && 'text-gray-500',
+                  userReaction === '🔥' && 'text-orange-500',
+                  userReaction === '😍' && 'text-pink-500',
+                  userReaction === '🗿' && 'text-stone-500',
+                )}
+                onClick={() => handleReaction(userReaction ? userReaction : '👍')}
+              >
+                {userReaction ? (
+                  <span className="text-xl md:mr-2">{userReaction}</span>
+                ) : (
+                  <ThumbsUp className="md:mr-2 h-5 w-5" />
+                )}
+                <span className="hidden md:inline">{userReaction ? 'Reacted' : 'Like'}</span>
+              </Button>
+            </ReactionPicker>
+            <Button variant="ghost" className='w-auto md:w-full rounded-md font-semibold text-muted-foreground px-2 md:px-4' onClick={() => setIsCommentsOpen(true)}>
+              <MessageCircle className="md:mr-2 h-5 w-5" />
+              <span className="hidden md:inline">Comment</span>
             </Button>
-          </ReactionPicker>
-          <Button variant="ghost" className='w-full rounded-md font-semibold text-muted-foreground' onClick={() => setIsCommentsOpen(true)}>
-            <MessageCircle className="mr-2 h-5 w-5" />
-            Comment
-          </Button>
-          <Button variant="ghost" className='w-full rounded-md font-semibold text-muted-foreground' onClick={() => setIsShareModalOpen(true)}>
-            <Send className="mr-2 h-5 w-5" />
-            Share
-          </Button>
+            <Button variant="ghost" className='w-auto md:w-full rounded-md font-semibold text-muted-foreground px-2 md:px-4' onClick={() => setIsShareModalOpen(true)}>
+              <Send className="md:mr-2 h-5 w-5" />
+              <span className="hidden md:inline">Share</span>
+            </Button>
+          </div>
+          <div className="md:hidden text-xs text-muted-foreground font-medium">
+            {(() => {
+              const reactionCount = Object.values(post.reactions || {}).reduce((acc: number, curr: any) => acc + (Array.isArray(curr) ? curr.length : 0), 0);
+              return (
+                <span>
+                  {reactionCount} reactions {post.commentsCount || 0} comments
+                </span>
+              );
+            })()}
+          </div>
         </CardFooter>
       </Card>
 
@@ -466,4 +490,4 @@ export function PostCard({ postId }: { postId: string }) {
       {authUser && post && <SharePostModal post={post} open={isShareModalOpen} onOpenChange={setIsShareModalOpen} />}
     </>
   );
-}
+});

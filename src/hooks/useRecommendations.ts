@@ -22,17 +22,21 @@ export interface Recommendation {
   username: string;
   displayName: string;
   photoURL?: string;
+  isVerified?: boolean;
+  isAgent?: boolean;
 }
 
 interface UserData {
   uid: string;
   username: string;
   displayName: string;
-  profilePicture?: string;
+  photoURL?: string;
   tags?: string[];
   joinedCommunities?: string[];
   relationshipStatus?: string;
   followersCount?: number;
+  isVerified?: boolean;
+  isAgent?: boolean;
 }
 
 const WEIGHTS = {
@@ -172,7 +176,9 @@ export function useRecommendations() {
             mutualCount,
             username: candidate.username,
             displayName: candidate.displayName,
-            photoURL: candidate.profilePicture
+            photoURL: candidate.photoURL,
+            isVerified: candidate.isVerified,
+            isAgent: candidate.isAgent
           };
         });
 

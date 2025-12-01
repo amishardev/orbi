@@ -11,6 +11,7 @@ import type { User } from '@/lib/types';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-client';
+import { BadgeCheck } from 'lucide-react';
 
 function SuggestionSkeleton() {
     return (
@@ -36,7 +37,15 @@ function UserSuggestion({ user }: { user: User }) {
                 </Avatar>
                 <Link href={`/profile/${user.username}`}>
                     <div>
-                        <p className="font-semibold text-sm hover:underline">{user.displayName}</p>
+                        <p className="font-semibold text-sm hover:underline flex items-center gap-1">
+                            {user.displayName}
+                            {user.isVerified && (
+                                <BadgeCheck className="h-3 w-3 text-white fill-blue-500" />
+                            )}
+                            {user.isAgent && (
+                                <BadgeCheck className="h-3 w-3 text-white fill-green-500" />
+                            )}
+                        </p>
                         <p className="text-xs text-muted-foreground">@{user.username}</p>
                     </div>
                 </Link>
@@ -61,7 +70,9 @@ export function Suggestions() {
                 id: rec.id,
                 username: rec.username,
                 displayName: rec.displayName,
-                photoURL: rec.photoURL,
+                photoURL: rec.photoURL || '',
+                isVerified: rec.isVerified || false,
+                isAgent: rec.isAgent || false,
                 // Add default values for missing fields
                 email: '',
                 bio: '',
@@ -86,7 +97,7 @@ export function Suggestions() {
                 followingCount: 0,
                 postsCount: 0,
                 profileVisibility: 'public',
-                isVerified: false,
+                // isVerified: false, // Removed hardcoded false
                 website: '',
                 allowMessages: true
             }));

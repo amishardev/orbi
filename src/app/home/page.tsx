@@ -8,7 +8,7 @@ import { PostCard } from '@/components/post-card';
 import { Suggestions } from '@/components/suggestions';
 import { Card } from '@/components/ui/card';
 import { db } from '@/lib/firebase-client';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StoriesRail } from '@/components/stories/stories-rail';
 import { MobileInFeedRecommendations } from '@/components/mobile-in-feed-recommendations';
@@ -33,7 +33,7 @@ function PostSkeleton() {
 
 export default function HomePage() {
   const { authUser, userData } = useAuth();
-  const [postIds, setPostIds] = useState<string[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,18 +44,17 @@ export default function HomePage() {
 
     const postsCollection = collection(db, 'posts');
     // Fetch recent posts (limit 100 for client-side filtering)
-    const q = query(postsCollection, orderBy('createdAt', 'desc'));
+    const q = query(postsCollection, orderBy('createdAt', 'desc'), limit(100));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const allPosts = querySnapshot.docs.map(doc => ({ id: doc.id, userId: doc.data().userId }));
+      const allPosts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       // Filter posts: Show posts from people I follow AND my own posts
       const followingIds = new Set([...(userData.following || []), authUser.uid]);
-      const filteredIds = allPosts
-        .filter(post => followingIds.has(post.userId))
-        .map(post => post.id);
+      const filteredPosts = allPosts
+        .filter((post: any) => followingIds.has(post.userId));
 
-      setPostIds(filteredIds);
+      setPosts(filteredPosts);
       setLoading(false);
     }, (error) => {
       console.error("Error fetching posts: ", error);
@@ -71,11 +70,11 @@ export default function HomePage() {
 
   const followingCount = userData.following?.length || 0;
   const isNewUser = followingCount === 0;
-  const isQuietFeed = followingCount > 0 && postIds.length === 0;
+  const isQuietFeed = followingCount > 0 && posts.length === 0;
 
   return (
     <AppLayout>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-4 md:p-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-0 md:gap-8 p-0 md:p-8">
         <div className="md:col-span-2 space-y-8">
           <StoriesRail />
           <CreatePost user={userData} className="hidden md:block" />
@@ -111,9 +110,9 @@ export default function HomePage() {
             </div>
           ) : (
             // State C: Active Feed
-            postIds.map((postId, index) => (
-              <div key={postId}>
-                <PostCard postId={postId} />
+            posts.map((post, index) => (
+              <div key={post.id}>
+                <PostCard post={post} />
                 {index === 7 && <MobileInFeedRecommendations />}
               </div>
             ))
