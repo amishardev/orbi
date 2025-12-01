@@ -20,6 +20,10 @@ const serializeData = (data: any) => {
 
 export async function getAllUsers(limitCount: number = 50) {
     try {
+        if (!db) {
+            console.warn("[ADMIN ACTION] Admin SDK not initialized. Skipping user fetch.");
+            return [];
+        }
         console.log("[ADMIN ACTION] Fetching users (Debugging)...");
         // REMOVED orderBy to ensure we get results even if field is missing
         const snapshot = await db.collection('users').limit(limitCount).get();
@@ -55,6 +59,10 @@ export async function getAllUsers(limitCount: number = 50) {
 
 export async function getAllPosts(limitCount: number = 50) {
     try {
+        if (!db) {
+            console.warn("[ADMIN ACTION] Admin SDK not initialized. Skipping posts fetch.");
+            return [];
+        }
         console.log("[ADMIN ACTION] Fetching posts...");
         const snapshot = await db.collection('posts').orderBy('createdAt', 'desc').limit(limitCount).get();
         console.log(`[ADMIN ACTION] Fetched ${snapshot.size} posts.`);
@@ -67,8 +75,8 @@ export async function getAllPosts(limitCount: number = 50) {
         // 2. Fetch user documents
         // Firestore 'in' query is limited to 30 items. If we have more, we might need to batch or use getAll.
         // For simplicity in this admin view, let's use getAll which is more robust for IDs.
-        const userRefs = authorIds.map(id => db.collection('users').doc(id));
-        const userSnapshots = userRefs.length > 0 ? await db.getAll(...userRefs) : [];
+        const userRefs = authorIds.map(id => db!.collection('users').doc(id));
+        const userSnapshots = userRefs.length > 0 ? await db!.getAll(...userRefs) : [];
 
         // 3. Create a map of authorId -> User Data
         const authorMap = new Map();
@@ -106,6 +114,9 @@ export async function getAllPosts(limitCount: number = 50) {
 
 export async function verifyUser(uid: string) {
     try {
+        if (!db) {
+            return { success: false, error: 'Admin SDK not initialized' };
+        }
         await db.collection('users').doc(uid).update({
             isVerified: true,
         });
@@ -119,6 +130,9 @@ export async function verifyUser(uid: string) {
 
 export async function verifyAgent(uid: string) {
     try {
+        if (!db) {
+            return { success: false, error: 'Admin SDK not initialized' };
+        }
         await db.collection('users').doc(uid).update({
             isAgent: true,
         });
@@ -132,6 +146,9 @@ export async function verifyAgent(uid: string) {
 
 export async function banUser(uid: string) {
     try {
+        if (!auth || !db) {
+            return { success: false, error: 'Admin SDK not initialized' };
+        }
         // Disable in Auth
         await auth.updateUser(uid, {
             disabled: true,
@@ -152,6 +169,9 @@ export async function banUser(uid: string) {
 
 export async function deleteUser(uid: string) {
     try {
+        if (!auth || !db) {
+            return { success: false, error: 'Admin SDK not initialized' };
+        }
         // Delete from Auth
         await auth.deleteUser(uid);
 
@@ -168,6 +188,9 @@ export async function deleteUser(uid: string) {
 
 export async function deletePost(postId: string, reason: string, authorId: string) {
     try {
+        if (!db) {
+            return { success: false, error: 'Admin SDK not initialized' };
+        }
         // Delete the post
         await db.collection('posts').doc(postId).delete();
 
@@ -192,6 +215,15 @@ export async function deletePost(postId: string, reason: string, authorId: strin
 
 export async function getAdminStats() {
     try {
+        if (!db) {
+            console.warn("[ADMIN ACTION] Admin SDK not initialized. Returning empty stats.");
+            return {
+                totalUsers: 0,
+                activePosts: 0,
+                verifiedUsers: 0,
+                systemHealth: 'Admin SDK Missing'
+            };
+        }
         console.log("[ADMIN ACTION] Fetching stats...");
 
         // 1. Count Total Users

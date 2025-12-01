@@ -173,7 +173,7 @@ export function SettingsForm({ currentUserData }: SettingsFormProps) {
             className="aspect-[3/1] w-full rounded-lg bg-muted flex items-center justify-center cursor-pointer relative overflow-hidden group"
           >
             {coverPreview ? (
-              <Image src={coverPreview} alt="Cover preview" layout="fill" objectFit="cover" />
+              <Image src={coverPreview} alt="Cover preview" fill className="object-cover" />
             ) : (
               <div className="text-muted-foreground flex flex-col items-center">
                 <ImageIcon className="h-10 w-10" />

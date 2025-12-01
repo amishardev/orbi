@@ -1,6 +1,8 @@
 import { AdminUserTable } from '@/components/admin/AdminUserTable';
 import { getAllUsers } from '@/actions/admin-actions';
 
+export const dynamic = 'force-dynamic';
+
 export default async function UsersPage() {
     const users = await getAllUsers();
 

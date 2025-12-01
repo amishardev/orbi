@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, FileText, ShieldCheck, Activity } from 'lucide-react';
 import { getAdminStats } from '@/actions/admin-actions';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminDashboard() {
     const stats = await getAdminStats();
 

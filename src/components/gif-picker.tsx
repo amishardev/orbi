@@ -15,9 +15,9 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { Skeleton } from './ui/skeleton';
 
 interface GifPickerProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onSelect: (url: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (url: string) => void;
 }
 
 export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
@@ -44,7 +44,7 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
   useEffect(() => {
     loadGifs(debouncedQuery || 'trending');
   }, [debouncedQuery]);
-  
+
   const handleLoadMore = () => {
     if (nextPos && !loading) {
       loadGifs(debouncedQuery || 'trending', nextPos);
@@ -77,13 +77,13 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
           <DialogTitle>Select a GIF</DialogTitle>
         </DialogHeader>
         <div className="p-4">
-            <Input
+          <Input
             type="text"
             placeholder="Search GIFs..."
             value={query}
             onChange={e => setQuery(e.target.value)}
             className="w-full"
-            />
+          />
         </div>
         <ScrollArea className="flex-1 px-4">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -96,21 +96,20 @@ export function GifPicker({ open, onOpenChange, onSelect }: GifPickerProps) {
                 <Image
                   src={g.media_formats.tinygif.url}
                   alt={g.content_description}
-                  layout="fill"
-                  objectFit="cover"
-                  className="rounded"
+                  fill
+                  className="rounded object-cover"
                 />
-                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             ))}
           </div>
           <div ref={loaderRef} className="h-10 flex justify-center items-center">
             {loading && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 w-full">
-                    <Skeleton className="w-full aspect-square" />
-                    <Skeleton className="w-full aspect-square" />
-                    <Skeleton className="w-full aspect-square" />
-                </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 w-full">
+                <Skeleton className="w-full aspect-square" />
+                <Skeleton className="w-full aspect-square" />
+                <Skeleton className="w-full aspect-square" />
+              </div>
             )}
           </div>
         </ScrollArea>
