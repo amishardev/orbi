@@ -11,9 +11,9 @@ export function HeroSection() {
                 {/* Left: Typography */}
                 <div className="space-y-8 text-center lg:text-left z-10">
                     <h1 className="text-5xl md:text-7xl font-bold text-white leading-[1.1] tracking-tight">
-                        The Group Chat That's All <br />
+                        Keep Your Campus <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-orange-500">
-                            Fun & Games.
+                            in the loop.
                         </span>
                     </h1>
                     <p className="text-lg md:text-xl text-slate-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
