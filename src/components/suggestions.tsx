@@ -9,9 +9,9 @@ import Link from 'next/link';
 import { Skeleton } from './ui/skeleton';
 import type { User } from '@/lib/types';
 import { useRecommendations } from '@/hooks/useRecommendations';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, query, limit, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-client';
-import { BadgeCheck } from 'lucide-react';
+import { BadgeCheck, PartyPopper } from 'lucide-react';
 
 function SuggestionSkeleton() {
     return (
@@ -26,8 +26,28 @@ function SuggestionSkeleton() {
     );
 }
 
-function UserSuggestion({ user }: { user: User }) {
+interface UserSuggestionProps {
+    user: User;
+    onFollowed: (userId: string) => void;
+}
+
+function UserSuggestion({ user, onFollowed }: UserSuggestionProps) {
     const { followUser } = useAuth();
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const handleFollow = async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        try {
+            await followUser(user.id);
+            // Notify parent to remove this user from list
+            onFollowed(user.id);
+        } catch (error) {
+            console.error('Follow error:', error);
+            setIsProcessing(false);
+        }
+    };
+
     return (
         <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-3">
@@ -50,8 +70,13 @@ function UserSuggestion({ user }: { user: User }) {
                     </div>
                 </Link>
             </div>
-            <Button size="sm" className="rounded-full shrink-0" onClick={() => followUser(user.id)}>
-                Follow
+            <Button
+                size="sm"
+                className="rounded-full shrink-0"
+                onClick={handleFollow}
+                disabled={isProcessing}
+            >
+                {isProcessing ? "Following..." : "Follow"}
             </Button>
         </div>
     )
@@ -59,21 +84,56 @@ function UserSuggestion({ user }: { user: User }) {
 
 export function Suggestions() {
     const { authUser } = useAuth();
-    const { recommendations, loading } = useRecommendations();
+    const { recommendations, loading: recsLoading } = useRecommendations();
     const [suggestions, setSuggestions] = useState<User[]>([]);
+    const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+    const [loading, setLoading] = useState(true);
 
+    // Fetch following list once at mount
     useEffect(() => {
-        if (recommendations.length > 0) {
-            // Map recommendations to User type
-            // Note: recommendations from hook already have username, displayName, photoURL
-            const mappedUsers: User[] = recommendations.map(rec => ({
+        async function fetchFollowingIds() {
+            if (!authUser?.uid) {
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const followingRef = collection(db, `users/${authUser.uid}/following`);
+                const followingSnap = await getDocs(query(followingRef, limit(1000)));
+                const ids = new Set<string>();
+                followingSnap.forEach(doc => {
+                    ids.add(doc.id);
+                });
+                setFollowingIds(ids);
+            } catch (error) {
+                console.error('Error fetching following list:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchFollowingIds();
+    }, [authUser?.uid]);
+
+    // Filter and map recommendations, excluding followed users
+    useEffect(() => {
+        if (recommendations.length > 0 && !loading) {
+            // Filter out users we're already following
+            const filteredRecs = recommendations.filter(rec => {
+                const isFollowing = followingIds.has(rec.id);
+                return !isFollowing;
+            });
+
+            console.log(`[Suggestions] Filtered ${recommendations.length} -> ${filteredRecs.length} users`);
+
+            // Map to User type
+            const mappedUsers: User[] = filteredRecs.map(rec => ({
                 id: rec.id,
                 username: rec.username,
                 displayName: rec.displayName,
                 photoURL: rec.photoURL || '',
                 isVerified: rec.isVerified || false,
                 isAgent: rec.isAgent || false,
-                // Add default values for missing fields
                 email: '',
                 bio: '',
                 followers: [],
@@ -81,7 +141,7 @@ export function Suggestions() {
                 interests: [],
                 joinedCommunities: [],
                 createdAt: Timestamp.now(),
-                userId: rec.id, // Required by User type
+                userId: rec.id,
                 username_lowercase: rec.username.toLowerCase(),
                 displayName_lowercase: rec.displayName.toLowerCase(),
                 joinDate: Timestamp.now(),
@@ -97,13 +157,20 @@ export function Suggestions() {
                 followingCount: 0,
                 postsCount: 0,
                 profileVisibility: 'public',
-                // isVerified: false, // Removed hardcoded false
                 website: '',
                 allowMessages: true
             }));
             setSuggestions(mappedUsers);
         }
-    }, [recommendations]);
+    }, [recommendations, followingIds, loading]);
+
+    // Handler when a user is followed - remove from suggestions
+    const handleUserFollowed = (userId: string) => {
+        setSuggestions(prev => prev.filter(u => u.id !== userId));
+        setFollowingIds(prev => new Set([...prev, userId]));
+    };
+
+    const isLoading = loading || recsLoading;
 
     return (
         <Card>
@@ -111,24 +178,28 @@ export function Suggestions() {
                 <CardTitle className="text-lg">Who to Follow</CardTitle>
             </CardHeader>
             <CardContent>
-                {loading ? (
+                {isLoading ? (
                     <div className="space-y-4">
                         <SuggestionSkeleton />
                         <SuggestionSkeleton />
                         <SuggestionSkeleton />
                     </div>
+                ) : suggestions.length > 0 ? (
+                    <div className='space-y-2'>
+                        {suggestions.slice(0, 5).map(user => (
+                            <UserSuggestion
+                                key={user.id}
+                                user={user}
+                                onFollowed={handleUserFollowed}
+                            />
+                        ))}
+                    </div>
                 ) : (
-                    <>
-                        {suggestions.length > 0 ? (
-                            <div className='space-y-2'>
-                                {suggestions.slice(0, 5).map(user => ( // Show top 5
-                                    <UserSuggestion key={user.id} user={user} />
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground text-center py-4">No new suggestions right now.</p>
-                        )}
-                    </>
+                    <div className="text-center py-6">
+                        <PartyPopper className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
+                        <p className="text-sm font-medium text-foreground">You're all caught up! 🎉</p>
+                        <p className="text-xs text-muted-foreground mt-1">Check back later for new suggestions</p>
+                    </div>
                 )}
             </CardContent>
         </Card>

@@ -205,7 +205,7 @@ export default function ProfilePage() {
                             </div>
                         </div>
                     ) : (
-                        <ProfilePosts userId={user.id} /> // Changed from profileUser.id to user.id
+                        <ProfilePosts userId={user.id} isOwner={isOwner} />
                     )}
                 </div>
             </div>

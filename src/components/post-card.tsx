@@ -43,6 +43,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import EmbedRenderer from './embed-renderer';
+import { ANONYMOUS_AVATAR_URL, ANONYMOUS_DISPLAY_NAME } from '@/lib/anonymous-config';
 
 
 function PostSkeleton() {
@@ -305,9 +306,16 @@ export const PostCard = React.memo(function PostCard({ postId, post: initialPost
     return null;
   }
 
-  const postAuthorUsername = post.username || 'user';
-  const postAuthorName = post.authorDisplayName || post.username || 'User';
-  const postAuthorAvatar = post.authorPhotoURL || `https://picsum.photos/seed/${post.userId}/200/200`;
+  // Handle anonymous post display
+  const isAnonymousPost = post.isAnonymous === true;
+  const postAuthorUsername = isAnonymousPost ? '' : (post.username || 'user');
+  const postAuthorName = isAnonymousPost
+    ? (post.publicAuthorName || ANONYMOUS_DISPLAY_NAME)
+    : (post.authorDisplayName || post.username || 'User');
+  const postAuthorAvatar = isAnonymousPost
+    ? (post.publicAuthorDp || ANONYMOUS_AVATAR_URL)
+    : (post.authorPhotoURL || `https://picsum.photos/seed/${post.userId}/200/200`);
+  const showProfileLink = !isAnonymousPost && post.showProfileLink !== false;
 
   const isTextOnly = !post.embed && !post.mediaUrl && (!post.mediaUrls || post.mediaUrls.length === 0);
 
@@ -326,13 +334,17 @@ export const PostCard = React.memo(function PostCard({ postId, post: initialPost
           </Avatar>
           <div className="flex-1">
             <CardTitle className="text-base font-bold flex items-center gap-1">
-              <Link href={`/profile/${postAuthorUsername}`} className="hover:underline">
-                {postAuthorName}
-              </Link>
-              {authorStatus?.isVerified && (
+              {showProfileLink ? (
+                <Link href={`/profile/${postAuthorUsername}`} className="hover:underline">
+                  {postAuthorName}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">{postAuthorName}</span>
+              )}
+              {!isAnonymousPost && authorStatus?.isVerified && (
                 <BadgeCheck className="h-4 w-4 text-white fill-blue-500" />
               )}
-              {authorStatus?.isAgent && (
+              {!isAnonymousPost && authorStatus?.isAgent && (
                 <BadgeCheck className="h-4 w-4 text-white fill-green-500" />
               )}
             </CardTitle>

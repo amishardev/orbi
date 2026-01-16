@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Home, Search, Plus, Bell, User, MessageSquare } from 'lucide-react';
+import { Home, Search, Plus, Bell, User, MessageSquare, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -39,7 +39,7 @@ export function MobileNavBar() {
 
     const navItems = [
         { href: '/home', icon: Home, label: 'Home' },
-        { href: '/messages', icon: MessageSquare, label: 'Inbox' },
+        { href: '/explore', icon: Compass, label: 'Explore' },
         { type: 'create', icon: Plus, label: 'Create' },
         { href: '/notifications', icon: Bell, label: 'Notifications', badge: notificationCount > 0, count: notificationCount },
         { href: userData?.username ? `/profile/${userData.username}` : '#', icon: User, label: 'Profile' },

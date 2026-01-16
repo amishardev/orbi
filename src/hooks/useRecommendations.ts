@@ -27,7 +27,7 @@ export interface Recommendation {
 }
 
 interface UserData {
-  uid: string;
+  userId?: string; // Firestore uses userId field
   username: string;
   displayName: string;
   photoURL?: string;
@@ -128,11 +128,14 @@ export function useRecommendations() {
         // Helper to add to map
         const addToMap = (doc: any) => {
           const data = doc.data() as UserData;
-          if (!data.uid) data.uid = doc.id;
+          const docId = doc.id;
+
+          // Use doc.id as the canonical ID (this is the Firestore document ID)
+          const candidateId = docId;
 
           // Filter: Remove self and already followed
-          if (data.uid && !excludedIds.has(data.uid)) {
-            candidatesMap.set(data.uid, data);
+          if (candidateId && !excludedIds.has(candidateId)) {
+            candidatesMap.set(candidateId, { ...data, userId: candidateId });
           }
         };
 
@@ -171,7 +174,7 @@ export function useRecommendations() {
           }
 
           return {
-            id: candidate.uid,
+            id: candidate.userId || '', // Use userId field
             score,
             mutualCount,
             username: candidate.username,

@@ -149,6 +149,11 @@ export type Post = {
   commentsCount: number;
   totalReactions: number;
   embed?: EmbedData;
+  // Anonymous posting fields
+  isAnonymous?: boolean;
+  showProfileLink?: boolean;
+  publicAuthorName?: string;
+  publicAuthorDp?: string;
   // Fields from old data structure, kept for compatibility for now.
   image?: string;
   timestamp?: string;

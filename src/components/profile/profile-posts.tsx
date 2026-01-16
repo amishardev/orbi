@@ -14,27 +14,28 @@ import type { Timestamp } from 'firebase/firestore';
 
 interface ProfilePostsProps {
   userId: string;
+  isOwner?: boolean; // If true, show all posts including anonymous ones
 }
 
 
 function PostSkeleton() {
-    return (
-        <Card className="p-6">
-            <div className="flex items-center gap-4">
-                <Skeleton className="h-12 w-12 rounded-full" />
-                <div className="space-y-2">
-                    <Skeleton className="h-4 w-[250px]" />
-                    <Skeleton className="h-4 w-[200px]" />
-                </div>
-            </div>
-            <Skeleton className="h-4 w-full mt-4" />
-            <Skeleton className="h-4 w-3/4 mt-2" />
-            <Skeleton className="aspect-video w-full mt-4 rounded-lg" />
-        </Card>
-    );
+  return (
+    <Card className="p-6">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-12 w-12 rounded-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-[250px]" />
+          <Skeleton className="h-4 w-[200px]" />
+        </div>
+      </div>
+      <Skeleton className="h-4 w-full mt-4" />
+      <Skeleton className="h-4 w-3/4 mt-2" />
+      <Skeleton className="aspect-video w-full mt-4 rounded-lg" />
+    </Card>
+  );
 }
 
-export function ProfilePosts({ userId }: ProfilePostsProps) {
+export function ProfilePosts({ userId, isOwner = false }: ProfilePostsProps) {
   const [postIds, setPostIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,14 +54,20 @@ export function ProfilePosts({ userId }: ProfilePostsProps) {
         );
 
         const querySnapshot = await getDocs(q);
-        
-        const userPosts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
-        
+
+        let userPosts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+
+        // IMPORTANT: If viewing someone else's profile, hide their anonymous posts
+        // Only the profile owner can see their own anonymous posts
+        if (!isOwner) {
+          userPosts = userPosts.filter(post => !post.isAnonymous);
+        }
+
         // Sort posts by creation date client-side
         userPosts.sort((a, b) => {
-            const aTime = (a.createdAt as Timestamp)?.toMillis() || 0;
-            const bTime = (b.createdAt as Timestamp)?.toMillis() || 0;
-            return bTime - aTime;
+          const aTime = (a.createdAt as Timestamp)?.toMillis() || 0;
+          const bTime = (b.createdAt as Timestamp)?.toMillis() || 0;
+          return bTime - aTime;
         });
 
         setPostIds(userPosts.map(p => p.id));
@@ -72,7 +79,7 @@ export function ProfilePosts({ userId }: ProfilePostsProps) {
       }
     }
     fetchPosts();
-  }, [userId]);
+  }, [userId, isOwner]);
 
   if (loading) {
     return (
@@ -82,14 +89,14 @@ export function ProfilePosts({ userId }: ProfilePostsProps) {
       </div>
     );
   }
-  
+
   if (postIds.length === 0) {
-      return (
-          <Card className="col-span-3 flex flex-col items-center justify-center p-12 text-center mx-4 md:mx-0">
-              <h3 className="text-xl font-semibold">No Posts Yet</h3>
-              <p className="text-muted-foreground mt-2">This user hasn't shared any posts.</p>
-          </Card>
-      )
+    return (
+      <Card className="col-span-3 flex flex-col items-center justify-center p-12 text-center mx-4 md:mx-0">
+        <h3 className="text-xl font-semibold">No Posts Yet</h3>
+        <p className="text-muted-foreground mt-2">This user hasn't shared any posts.</p>
+      </Card>
+    )
   }
 
   return (

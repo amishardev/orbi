@@ -50,9 +50,10 @@ export default function HomePage() {
       const allPosts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       // Filter posts: Show posts from people I follow AND my own posts
+      // IMPORTANT: Exclude anonymous posts - they should only appear in Explore
       const followingIds = new Set([...(userData.following || []), authUser.uid]);
       const filteredPosts = allPosts
-        .filter((post: any) => followingIds.has(post.userId));
+        .filter((post: any) => followingIds.has(post.userId) && !post.isAnonymous);
 
       setPosts(filteredPosts);
       setLoading(false);

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Image as ImageIcon, Send, X, Link as LinkIcon, Video } from 'lucide-react';
+import { Image as ImageIcon, Send, X, Link as LinkIcon, Video, ChevronDown, UserX, Info } from 'lucide-react';
 import { Card } from './ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { db } from '@/lib/firebase-client';
@@ -30,9 +30,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { cn } from '@/lib/utils';
+import { ANONYMOUS_AVATAR_URL, ANONYMOUS_DISPLAY_NAME, ANONYMOUS_TOOLTIP } from '@/lib/anonymous-config';
 
 const urlRegex = /(https?:\/\/[^\s]+)/g;
 
@@ -51,6 +64,7 @@ export function CreatePost({ user, className }: { user: User, className?: string
 
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [manualUrl, setManualUrl] = useState('');
+  const [postVisibility, setPostVisibility] = useState<'public' | 'anonymous'>('public');
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -174,28 +188,17 @@ export function CreatePost({ user, className }: { user: User, className?: string
     setIsPosting(true);
     setUploadProgress(0);
 
-    const postData: any = {
-      userId: authUser.uid,
-      username: user.username || 'user',
-      authorDisplayName: user.displayName || 'User',
-      authorPhotoURL: user.photoURL || `https://picsum.photos/seed/${authUser.uid}/200/200`,
-      caption: caption,
-      createdAt: serverTimestamp(),
-      reactions: {},
-      commentsCount: 0,
-      totalReactions: 0,
-    };
-
-    if (linkEmbed) {
-      postData.embed = linkEmbed;
-    }
-
     try {
+      // Upload media first if present
+      let mediaUrl: string | null = null;
+      let mediaUrls: string[] | null = null;
+      let uploadedMediaType: 'image' | 'video' | null = null;
+      let imageHint: string | undefined = undefined;
+
       if (mediaFiles.length > 0) {
         if (mediaType === 'video') {
-          const videoUrl = await uploadVideo(mediaFiles[0]);
-          postData.mediaUrl = videoUrl;
-          postData.mediaType = 'video';
+          mediaUrl = await uploadVideo(mediaFiles[0]);
+          uploadedMediaType = 'video';
         } else {
           // Handle multiple images
           const uploadPromises = mediaFiles.map(file => {
@@ -213,25 +216,75 @@ export function CreatePost({ user, className }: { user: User, className?: string
           });
 
           if (urls.length > 0) {
-            postData.mediaUrl = urls[0]; // Backward compatibility
-            postData.mediaUrls = urls;
-            postData.mediaType = 'image';
+            mediaUrl = urls[0]; // Backward compatibility
+            mediaUrls = urls;
+            uploadedMediaType = 'image';
             // Hint from first image if available
             if (results[0].hint) {
-              postData.imageHint = results[0].hint;
+              imageHint = results[0].hint;
             }
           }
         }
-      } else {
-        postData.mediaUrl = null;
-        postData.mediaUrls = null;
-        postData.mediaType = null;
       }
 
-      await addDoc(collection(db, 'posts'), postData);
+      if (postVisibility === 'anonymous') {
+        // Direct Firestore write for anonymous posts (Free tier - no Cloud Functions)
+        const postData: any = {
+          userId: authUser.uid, // Keep for ownership (delete permissions)
+          username: '', // Hidden for anonymous
+          authorDisplayName: ANONYMOUS_DISPLAY_NAME,
+          authorPhotoURL: ANONYMOUS_AVATAR_URL,
+          publicAuthorName: ANONYMOUS_DISPLAY_NAME,
+          publicAuthorDp: ANONYMOUS_AVATAR_URL,
+          caption: caption,
+          createdAt: serverTimestamp(),
+          reactions: {},
+          commentsCount: 0,
+          totalReactions: 0,
+          isAnonymous: true,
+          showProfileLink: false,
+          visibility: 'explore', // Anonymous posts only appear in Explore feed
+        };
+
+        // Only add optional fields if they have values (Firestore rejects undefined)
+        if (mediaUrl) postData.mediaUrl = mediaUrl;
+        if (mediaUrls && mediaUrls.length > 0) postData.mediaUrls = mediaUrls;
+        if (uploadedMediaType) postData.mediaType = uploadedMediaType;
+        if (imageHint) postData.imageHint = imageHint;
+        if (linkEmbed) postData.embed = linkEmbed;
+
+        await addDoc(collection(db, 'posts'), postData);
+      } else {
+        // Direct Firestore write for non-anonymous posts
+        const postData: any = {
+          userId: authUser.uid,
+          username: user.username || 'user',
+          authorDisplayName: user.displayName || 'User',
+          authorPhotoURL: user.photoURL || `https://picsum.photos/seed/${authUser.uid}/200/200`,
+          caption: caption,
+          createdAt: serverTimestamp(),
+          reactions: {},
+          commentsCount: 0,
+          totalReactions: 0,
+          isAnonymous: false,
+          showProfileLink: true,
+          visibility: 'public', // Public posts appear in Home and Explore feeds
+        };
+
+        // Only add optional fields if they have values (Firestore rejects undefined)
+        if (mediaUrl) postData.mediaUrl = mediaUrl;
+        if (mediaUrls && mediaUrls.length > 0) postData.mediaUrls = mediaUrls;
+        if (uploadedMediaType) postData.mediaType = uploadedMediaType;
+        if (imageHint) postData.imageHint = imageHint;
+        if (linkEmbed) postData.embed = linkEmbed;
+
+        await addDoc(collection(db, 'posts'), postData);
+      }
+
       setCaption('');
       removeMedia();
       setLinkEmbed(null);
+      setPostVisibility('public');
     } catch (error: any) {
       console.error("Error creating post: ", error);
       toast({
@@ -248,9 +301,12 @@ export function CreatePost({ user, className }: { user: User, className?: string
     <Card className={cn("p-4 overflow-hidden", className)}>
       <div className='flex gap-4'>
         <Avatar className='h-12 w-12'>
-          <AvatarImage src={user.photoURL} alt={user.displayName} />
+          <AvatarImage
+            src={postVisibility === 'anonymous' ? ANONYMOUS_AVATAR_URL : user.photoURL}
+            alt={postVisibility === 'anonymous' ? ANONYMOUS_DISPLAY_NAME : user.displayName}
+          />
           <AvatarFallback>
-            {user.displayName
+            {postVisibility === 'anonymous' ? '?' : user.displayName
               ?.split(' ')
               .map(n => n[0])
               .join('')}
@@ -364,9 +420,77 @@ export function CreatePost({ user, className }: { user: User, className?: string
             </AlertDialogContent>
           </AlertDialog>
         </div>
-        <Button onClick={handlePost} disabled={isPosting || (!caption.trim() && mediaFiles.length === 0 && !linkEmbed)} className="rounded-full w-24">
-          {isPosting ? 'POSTING...' : 'POST'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 gap-1 text-xs"
+                        disabled={isPosting}
+                      >
+                        {postVisibility === 'anonymous' ? (
+                          <>
+                            <UserX className="h-4 w-4" />
+                            <span className="hidden sm:inline">Anonymous</span>
+                          </>
+                        ) : (
+                          <>
+                            <Avatar className="h-5 w-5">
+                              <AvatarImage src={user.photoURL} alt={user.displayName} />
+                              <AvatarFallback className="text-[8px]">
+                                {user.displayName?.split(' ').map(n => n[0]).join('')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="hidden sm:inline max-w-20 truncate">{user.displayName?.split(' ')[0]}</span>
+                          </>
+                        )}
+                        <ChevronDown className="h-3 w-3 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => setPostVisibility('public')}>
+                        <Avatar className="h-6 w-6 mr-2">
+                          <AvatarImage src={user.photoURL} alt={user.displayName} />
+                          <AvatarFallback className="text-[10px]">
+                            {user.displayName?.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-medium">Post as you</span>
+                          <span className="text-xs text-muted-foreground">{user.displayName}</span>
+                        </div>
+                        {postVisibility === 'public' && <span className="ml-auto text-primary">✓</span>}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setPostVisibility('anonymous')}>
+                        <Avatar className="h-6 w-6 mr-2">
+                          <AvatarImage src={ANONYMOUS_AVATAR_URL} alt="Anonymous" />
+                          <AvatarFallback>?</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-medium">Post anonymously</span>
+                          <span className="text-xs text-muted-foreground">Hide your identity</span>
+                        </div>
+                        {postVisibility === 'anonymous' && <span className="ml-auto text-primary">✓</span>}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-center">
+                <Info className="h-3 w-3 inline mr-1" />
+                {ANONYMOUS_TOOLTIP}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button onClick={handlePost} disabled={isPosting || (!caption.trim() && mediaFiles.length === 0 && !linkEmbed)} className="rounded-full w-24">
+            {isPosting ? 'POSTING...' : 'POST'}
+          </Button>
+        </div>
       </div>
     </Card>
   );

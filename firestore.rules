@@ -248,14 +248,26 @@ service cloud.firestore {
       // Anyone can read posts
       allow read: if true;
       
-      // Create: Users can create posts if they are logged in and the author
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Create: Users can create posts if logged in and are the author
+      // Anonymous posts are allowed with proper fields set
+      allow create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid
+        && (
+          // Non-anonymous posts: must have isAnonymous false or not set
+          (!request.resource.data.keys().hasAny(['isAnonymous']) || request.resource.data.isAnonymous == false)
+          ||
+          // Anonymous posts: must have correct anonymous fields
+          (request.resource.data.isAnonymous == true 
+           && request.resource.data.showProfileLink == false
+           && request.resource.data.authorDisplayName == 'Anonymous')
+        );
       
       // Update: 
-      // 1. Owner can update everything
+      // 1. Owner can update everything EXCEPT isAnonymous
       // 2. Strangers can update likes, reactions, and counts
       allow update: if request.auth != null && (
-        resource.data.userId == request.auth.uid ||
+        (resource.data.userId == request.auth.uid &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAnonymous'])) ||
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount', 'likes', 'reactions'])
         )
@@ -279,6 +291,13 @@ service cloud.firestore {
         // Users can create/delete their own like (document ID is usually userId)
         allow create, delete: if request.auth != null && request.auth.uid == userId;
       }
+    }
+
+    // Private author mapping for anonymous posts - SERVER ONLY ACCESS
+    // This collection stores the real author ID for anonymous posts
+    // Only Cloud Functions can read/write this collection
+    match /posts_private/{postId} {
+      allow read, write: if false;
     }
 
     // Stories collection

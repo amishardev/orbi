@@ -276,6 +276,258 @@ export const checkUsernameAvailability = functions.https.onCall(async (data, con
 // Rate limiting storage for follow actions (in-memory per instance)
 const userActionTimestamps = new Map<string, number>();
 
+// Rate limiting storage for post creation (in-memory per instance)
+// Maps userId -> array of post timestamps in the last hour
+const userPostTimestamps = new Map<string, number[]>();
+
+// Anonymous post constants
+const ANONYMOUS_AVATAR_URL = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSIxMDAiIGZpbGw9IiM2YjcyODAiLz48dGV4dCB4PSIxMDAiIHk9IjEzMCIgZm9udC1zaXplPSIxMDAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+PzwvdGV4dD48L3N2Zz4=';
+const ANONYMOUS_DISPLAY_NAME = 'Anonymous';
+const MAX_POSTS_PER_HOUR = 10;
+
+// List of admin user IDs (add your admin UIDs here)
+const ADMIN_UIDS: string[] = [
+  // Add admin UIDs here, e.g.:
+  // 'uid1234567890',
+];
+
+/**
+ * Check if a user is an admin
+ */
+function isAdmin(uid: string, customClaims?: any): boolean {
+  // Check against hardcoded list
+  if (ADMIN_UIDS.includes(uid)) {
+    return true;
+  }
+  // Check custom claims
+  if (customClaims?.admin === true) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Check rate limit for post creation
+ * Returns true if under limit, false if exceeded
+ */
+function checkPostRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const oneHourAgo = now - 60 * 60 * 1000;
+
+  // Get existing timestamps and filter out old ones
+  const timestamps = userPostTimestamps.get(userId) || [];
+  const recentTimestamps = timestamps.filter(ts => ts > oneHourAgo);
+
+  if (recentTimestamps.length >= MAX_POSTS_PER_HOUR) {
+    return false;
+  }
+
+  // Update timestamps
+  recentTimestamps.push(now);
+  userPostTimestamps.set(userId, recentTimestamps);
+
+  return true;
+}
+
+/**
+ * Basic HTML/script sanitization for captions
+ */
+function sanitizeCaption(caption: string): string {
+  if (!caption) return '';
+  // Remove script tags and common XSS patterns
+  return caption
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<[^>]+>/g, '') // Remove all HTML tags
+    .trim();
+}
+
+/**
+ * Callable function to create a post
+ * Supports both regular and anonymous posts
+ * Anonymous posts store real author in posts_private collection
+ */
+export const createPost = functions.https.onCall(async (data, context) => {
+  // Check authentication
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+  }
+
+  const uid = context.auth.uid;
+  const {
+    caption,
+    isAnonymous = false,
+    mediaUrl = null,
+    mediaUrls = null,
+    mediaType = null,
+    imageHint = null,
+    embed = null
+  } = data;
+
+  // Validate caption
+  if (!caption && !mediaUrl && !mediaUrls?.length && !embed) {
+    throw new functions.https.HttpsError('invalid-argument', 'Post must have content (caption, media, or embed)');
+  }
+
+  if (caption && caption.length > 5000) {
+    throw new functions.https.HttpsError('invalid-argument', 'Caption must be less than 5000 characters');
+  }
+
+  // Check rate limit
+  if (!checkPostRateLimit(uid)) {
+    throw new functions.https.HttpsError(
+      'resource-exhausted',
+      'Rate limit exceeded. You can create up to 10 posts per hour.'
+    );
+  }
+
+  try {
+    // Fetch user data for author info
+    const userDoc = await db.doc(`users/${uid}`).get();
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'User not found');
+    }
+
+    const userData = userDoc.data();
+    const sanitizedCaption = sanitizeCaption(caption || '');
+
+    // Generate post ID
+    const postRef = db.collection('posts').doc();
+    const postId = postRef.id;
+
+    // Build public post document
+    const postData: any = {
+      caption: sanitizedCaption,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      reactions: {},
+      commentsCount: 0,
+      totalReactions: 0,
+      mediaUrl: mediaUrl,
+      mediaUrls: mediaUrls,
+      mediaType: mediaType,
+      imageHint: imageHint,
+      isAnonymous: isAnonymous,
+    };
+
+    if (embed) {
+      postData.embed = embed;
+    }
+
+    if (isAnonymous) {
+      // Anonymous post - hide real author info
+      postData.userId = uid; // Still store for ownership (delete, etc.)
+      postData.username = '';
+      postData.authorDisplayName = ANONYMOUS_DISPLAY_NAME;
+      postData.authorPhotoURL = ANONYMOUS_AVATAR_URL;
+      postData.publicAuthorName = ANONYMOUS_DISPLAY_NAME;
+      postData.publicAuthorDp = ANONYMOUS_AVATAR_URL;
+      postData.showProfileLink = false;
+    } else {
+      // Regular post - show real author info
+      postData.userId = uid;
+      postData.username = userData?.username || 'user';
+      postData.authorDisplayName = userData?.displayName || 'User';
+      postData.authorPhotoURL = userData?.photoURL || `https://picsum.photos/seed/${uid}/200/200`;
+      postData.showProfileLink = true;
+    }
+
+    // Use batch write for atomic operation
+    const batch = db.batch();
+
+    // Write public post
+    batch.set(postRef, postData);
+
+    // Write private mapping (for moderation)
+    const privateRef = db.doc(`posts_private/${postId}`);
+    batch.set(privateRef, {
+      postId: postId,
+      realAuthorId: uid,
+      isAnonymous: isAnonymous,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+
+    return {
+      postId: postId,
+      isAnonymous: isAnonymous,
+    };
+
+  } catch (error) {
+    console.error('Error creating post:', error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      'internal',
+      error instanceof Error ? error.message : 'Failed to create post'
+    );
+  }
+});
+
+/**
+ * Admin callable function to reveal the real author of an anonymous post
+ * Only accessible to admin users
+ */
+export const revealAuthor = functions.https.onCall(async (data, context) => {
+  // Check authentication
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+  }
+
+  const uid = context.auth.uid;
+  const customClaims = context.auth.token;
+
+  // Check admin status
+  if (!isAdmin(uid, customClaims)) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Only administrators can reveal anonymous post authors'
+    );
+  }
+
+  const { postId } = data;
+
+  if (!postId) {
+    throw new functions.https.HttpsError('invalid-argument', 'postId is required');
+  }
+
+  try {
+    // Fetch private mapping
+    const privateDoc = await db.doc(`posts_private/${postId}`).get();
+
+    if (!privateDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Post private data not found');
+    }
+
+    const privateData = privateDoc.data();
+
+    // Fetch real author's user data
+    const userDoc = await db.doc(`users/${privateData?.realAuthorId}`).get();
+    const userData = userDoc.exists ? userDoc.data() : null;
+
+    return {
+      postId: postId,
+      realAuthorId: privateData?.realAuthorId,
+      realAuthorUsername: userData?.username || 'unknown',
+      realAuthorDisplayName: userData?.displayName || 'Unknown User',
+      realAuthorEmail: userData?.email || null,
+      isAnonymous: privateData?.isAnonymous,
+      createdAt: privateData?.createdAt,
+    };
+
+  } catch (error) {
+    console.error('Error revealing author:', error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      'internal',
+      error instanceof Error ? error.message : 'Failed to reveal author'
+    );
+  }
+});
+
 /**
  * Callable function to toggle follow/unfollow atomically
  * Input: { targetUid: string }
