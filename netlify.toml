@@ -2,10 +2,12 @@
   command = "npm run build"
   publish = ".next"
 
+[build.environment]
+  NODE_VERSION = "18"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
 # Environment variables should be set in the Netlify UI for security.
-# However, you can set non-sensitive defaults here if needed.
 # [context.production.environment]
 #   NEXT_PUBLIC_APP_URL = "https://your-app-name.netlify.app"
