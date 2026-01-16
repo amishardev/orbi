@@ -48,17 +48,17 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error('Login error:', error);
       let description = 'An unexpected error occurred.';
-      
-      if (error.code === 'auth/invalid-credential' || 
-          error.code === 'auth/wrong-password' || 
-          error.code === 'auth/user-not-found') {
+
+      if (error.code === 'auth/invalid-credential' ||
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/user-not-found') {
         description = 'Invalid email or password. Please try again.';
       } else if (error.code === 'auth/too-many-requests') {
         description = 'Too many failed attempts. Please try again later.';
       } else if (error.code === 'auth/user-disabled') {
         description = 'This account has been disabled. Please contact support.';
       }
-      
+
       toast({
         variant: 'destructive',
         title: 'Login Failed',
@@ -109,6 +109,12 @@ export default function LoginPage() {
               {isSubmitting ? 'Logging in...' : 'Login'}
             </Button>
           </form>
+          <div className="mt-4 text-center text-xs text-muted-foreground">
+            By continuing you are agreeing to our{' '}
+            <Link href="/terms" className="underline hover:text-primary">
+              Terms of Service
+            </Link>
+          </div>
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{' '}
             <Link href="/signup" className="underline">

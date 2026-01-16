@@ -213,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (loading) return;
 
     const isAuthPage = ['/login', '/signup'].includes(pathname);
-    const isPublicPage = ['/landing', '/'].includes(pathname);
+    const isPublicPage = ['/landing', '/', '/terms'].includes(pathname);
     const isFriendsPage = pathname === '/friends';
 
     if (authUser && userData && (isAuthPage || isPublicPage)) {

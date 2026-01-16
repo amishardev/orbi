@@ -285,6 +285,13 @@ export function SignUpWizard() {
                         </form>
                     </FormProvider>
 
+                    <div className="mt-6 text-center text-xs text-slate-500">
+                        By continuing you are agreeing to our{' '}
+                        <Link href="/terms" className="text-blue-500 hover:underline">
+                            Terms of Service
+                        </Link>
+                    </div>
+
                     <div className="mt-6 text-center text-sm text-slate-500">
                         Already have an account?{' '}
                         <Link href="/login" className="text-blue-500 hover:underline font-medium">

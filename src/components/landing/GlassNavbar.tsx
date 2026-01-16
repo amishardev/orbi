@@ -29,9 +29,11 @@ export function GlassNavbar() {
                     <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
                         Log In
                     </Link>
-                    <Button className="rounded-full bg-transparent border border-white/20 hover:bg-white hover:text-black transition-all duration-300">
-                        Join Now
-                    </Button>
+                    <Link href="/signup">
+                        <Button className="rounded-full bg-transparent border border-white/20 hover:bg-white hover:text-black transition-all duration-300">
+                            Join Now
+                        </Button>
+                    </Link>
                 </div>
             </div>
         </nav>
