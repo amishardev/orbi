@@ -17,7 +17,7 @@ export function HeroSection() {
                         </span>
                     </h1>
                     <p className="text-lg md:text-xl text-slate-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                        Orbi is the perfect place for <span className="text-white font-semibold">Collage peers</span> students to game, chill, and connect.
+                        Orbi is the perfect place for <span className="text-white font-semibold">Collage peers</span> Where College Life Comes Together.
                         Build your community in a space designed for real interaction.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
