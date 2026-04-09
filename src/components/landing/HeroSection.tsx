@@ -41,4 +41,5 @@ export function HeroSection() {
                 &copy; ORBIE copyright AMISH SHARMA
             </footer>
         </>
+    );
 }
