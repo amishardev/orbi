@@ -14,6 +14,7 @@ import {
   Bell,
   Search,
   Compass,
+  Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +53,7 @@ function MainNav({ isMobile = false }: { isMobile?: boolean }) {
     { href: '/home', label: 'Home', icon: Home },
     { href: '/explore', label: 'Explore', icon: Compass },
     { href: '/communities', label: 'Communities', icon: Users },
+    { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/messages', label: 'Messages', icon: MessageSquare, badge: totalUnreadCount },
     { href: userData?.username ? `/profile/${userData.username}` : '#', label: 'My Profile', icon: UserIcon },
     { href: '/settings', label: 'Settings', icon: Settings },

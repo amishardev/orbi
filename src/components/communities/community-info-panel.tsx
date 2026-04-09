@@ -4,7 +4,7 @@ import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { UserMinus, LogOut, Settings, UserPlus, Shield, X, MoreVertical, MessageSquare, ShieldCheck } from 'lucide-react';
+import { UserMinus, LogOut, Settings, UserPlus, Shield, X, MoreVertical, MessageSquare, ShieldCheck, Link as LinkIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { Community } from '@/lib/types';
 import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { InviteMemberModal } from './invite-member-modal';
 import { CommunitySettingsModal } from './community-settings-modal';
+import { GenerateInviteModal } from './GenerateInviteModal';
+import { PendingRequestsPanel } from './PendingRequestsPanel';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -30,6 +32,7 @@ export function CommunityInfoPanel({ community, isOpen, onClose }: CommunityInfo
 
     const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
+    const [isGenerateInviteModalOpen, setIsGenerateInviteModalOpen] = React.useState(false);
 
     const handleKickMember = async (memberId: string, memberName: string) => {
         if (!confirm(`Are you sure you want to kick ${memberName}?`)) return;
@@ -120,29 +123,49 @@ export function CommunityInfoPanel({ community, isOpen, onClose }: CommunityInfo
                                 {community.members.length} {community.members.length === 1 ? 'member' : 'members'}
                             </p>
 
-                            <div className="flex gap-2 mt-4 w-full">
-                                <Button
-                                    className="flex-1"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setIsInviteModalOpen(true)}
-                                >
-                                    <UserPlus size={16} className="mr-2" />
-                                    Invite
-                                </Button>
-                                {isAdmin && (
+                            <div className="flex flex-col gap-2 mt-4 w-full">
+                                <div className="flex gap-2">
                                     <Button
                                         className="flex-1"
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => setIsSettingsModalOpen(true)}
+                                        onClick={() => setIsInviteModalOpen(true)}
                                     >
-                                        <Settings size={16} className="mr-2" />
-                                        Settings
+                                        <UserPlus size={16} className="mr-2" />
+                                        Add User
+                                    </Button>
+                                    {isAdmin && (
+                                        <Button
+                                            className="flex-1"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setIsSettingsModalOpen(true)}
+                                        >
+                                            <Settings size={16} className="mr-2" />
+                                            Settings
+                                        </Button>
+                                    )}
+                                </div>
+                                {isAdmin && (
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => setIsGenerateInviteModalOpen(true)}
+                                        className="w-full"
+                                    >
+                                        <LinkIcon size={16} className="mr-2" />
+                                        Generate Invite Link
                                     </Button>
                                 )}
                             </div>
                         </div>
+
+                        {/* Pending Requests (Admin only) */}
+                        {isAdmin && (
+                            <div className="border-b border-border">
+                                <PendingRequestsPanel communityId={community.id} isAdmin={isAdmin} />
+                            </div>
+                        )}
 
                         {/* Members List */}
                         <div className="flex-1 flex flex-col min-h-0">
@@ -233,6 +256,12 @@ export function CommunityInfoPanel({ community, isOpen, onClose }: CommunityInfo
                         isOpen={isSettingsModalOpen}
                         onClose={() => setIsSettingsModalOpen(false)}
                         community={community}
+                    />
+                    <GenerateInviteModal
+                        isOpen={isGenerateInviteModalOpen}
+                        onClose={() => setIsGenerateInviteModalOpen(false)}
+                        communityId={community.id}
+                        communityName={community.name}
                     />
                 </>
             )}

@@ -9,6 +9,19 @@ const db = admin.firestore();
 export { onFollowUser } from './notifications';
 export { getRecommendations } from './recommendations';
 
+// Export Orbi Score functions
+export { connectPlatform, recalculateAllScores, refreshPlatformData, getLeaderboard } from './orbiScore';
+
+// Export community invite functions
+export {
+  generateCommunityInvite,
+  validateCommunityInvite,
+  acceptCommunityInvite,
+  processCommunityJoinRequest,
+  getPendingJoinRequests,
+  disableCommunityInvite
+} from './communityInvites';
+
 // Reserved usernames that cannot be used
 const RESERVED_USERNAMES = [
   'admin', 'api', 'p', 'assets', 'www', 'support', 'null', 'undefined',

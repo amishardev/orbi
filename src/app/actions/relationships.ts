@@ -16,24 +16,51 @@ export async function followUserAction(targetUserId: string, idToken: string) {
         const currentUserRef = adminDb.collection('users').doc(currentUserId);
         const targetUserRef = adminDb.collection('users').doc(targetUserId);
 
-        // Get current user data for notification
+        // Get current user data for notification and subcollection
         const currentUserDoc = await currentUserRef.get();
         const currentUserData = currentUserDoc.data();
+
+        // Get target user data for subcollection
+        const targetUserDoc = await targetUserRef.get();
+        const targetUserData = targetUserDoc.data();
 
         if (!currentUserData) {
             throw new Error("Current user profile not found.");
         }
+        if (!targetUserData) {
+            throw new Error("Target user profile not found.");
+        }
 
-        // Update current user: add to 'following' and increment 'followingCount'
+        // Update current user: add to 'following' array and increment 'followingCount'
         batch.update(currentUserRef, {
             following: FieldValue.arrayUnion(targetUserId),
             followingCount: FieldValue.increment(1),
         });
 
-        // Update target user: add to 'followers' and increment 'followersCount'
+        // Update target user: add to 'followers' array and increment 'followersCount'
         batch.update(targetUserRef, {
             followers: FieldValue.arrayUnion(currentUserId),
             followersCount: FieldValue.increment(1),
+        });
+
+        // ALSO write to subcollections (source of truth)
+        const followingSubcollectionRef = currentUserRef.collection('following').doc(targetUserId);
+        const followersSubcollectionRef = targetUserRef.collection('followers').doc(currentUserId);
+
+        batch.set(followingSubcollectionRef, {
+            userId: targetUserId,
+            username: targetUserData.username || '',
+            displayName: targetUserData.displayName || '',
+            photoURL: targetUserData.photoURL || '',
+            timestamp: FieldValue.serverTimestamp(),
+        });
+
+        batch.set(followersSubcollectionRef, {
+            userId: currentUserId,
+            username: currentUserData.username || '',
+            displayName: currentUserData.displayName || '',
+            photoURL: currentUserData.photoURL || '',
+            timestamp: FieldValue.serverTimestamp(),
         });
 
         // Create notification for the followed user
@@ -77,17 +104,24 @@ export async function unfollowUserAction(targetUserId: string, idToken: string) 
         const currentUserRef = adminDb.collection('users').doc(currentUserId);
         const targetUserRef = adminDb.collection('users').doc(targetUserId);
 
-        // Update current user: remove from 'following' and decrement 'followingCount'
+        // Update current user: remove from 'following' array and decrement 'followingCount'
         batch.update(currentUserRef, {
             following: FieldValue.arrayRemove(targetUserId),
             followingCount: FieldValue.increment(-1),
         });
 
-        // Update target user: remove from 'followers' and decrement 'followersCount'
+        // Update target user: remove from 'followers' array and decrement 'followersCount'
         batch.update(targetUserRef, {
             followers: FieldValue.arrayRemove(currentUserId),
             followersCount: FieldValue.increment(-1),
         });
+
+        // ALSO delete from subcollections (source of truth)
+        const followingSubcollectionRef = currentUserRef.collection('following').doc(targetUserId);
+        const followersSubcollectionRef = targetUserRef.collection('followers').doc(currentUserId);
+
+        batch.delete(followingSubcollectionRef);
+        batch.delete(followersSubcollectionRef);
 
         await batch.commit();
         return { success: true };

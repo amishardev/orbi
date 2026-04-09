@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Search, UserPlus, Check, X } from 'lucide-react';
-import { collection, query, where, getDocs, updateDoc, arrayUnion, doc, getDoc } from 'firebase/firestore';
+import { collection, query, getDocs, updateDoc, arrayUnion, doc, orderBy, startAt, endAt } from 'firebase/firestore';
 import { db } from '@/lib/firebase-client';
 import { useToast } from '@/hooks/use-toast';
 import type { User, Community } from '@/lib/types';
@@ -43,41 +43,58 @@ export function InviteMemberModal({ isOpen, onClose, community }: InviteMemberMo
         setLoading(true);
 
         try {
-            // Search by username (lowercase for case-insensitive search simulation)
-            // Note: Firestore doesn't support native case-insensitive search without third-party tools like Algolia
-            // or storing a lowercase field. Assuming 'username_lowercase' or similar exists or just searching exact match for now.
-            // Based on types.ts, we have 'username' and 'displayName'. 
-            // A simple implementation is to fetch users and filter client side if the dataset is small, 
-            // OR use a specific field if available. Let's try to match 'username' or 'displayName'.
-            // Since Firestore 'array-contains' or simple '==' is limited, we'll try a simple prefix match if possible,
-            // or just exact match for now to be safe, or fetch a batch.
-            // BETTER APPROACH for this demo: Query a limit of users and filter client side (not scalable but works for small apps)
-            // OR assume we have a 'username' field to query.
+            // Normalize input: trim, lowercase, and strip @ prefix
+            const normalizedQuery = searchQuery.trim().toLowerCase().replace(/^@/, '');
+
+            if (!normalizedQuery) {
+                setSearchResults([]);
+                setLoading(false);
+                return;
+            }
 
             const usersRef = collection(db, 'users');
-            // Simple prefix search on username
-            const q = query(
+            const combinedUsers: { [key: string]: User } = {};
+
+            // Search by username_lowercase using orderBy+startAt pattern (same as global-search)
+            const usernameQuery = query(
                 usersRef,
-                where('username', '>=', searchQuery),
-                where('username', '<=', searchQuery + '\uf8ff')
+                orderBy('username_lowercase'),
+                startAt(normalizedQuery),
+                endAt(normalizedQuery + '\uf8ff')
             );
 
-            const snapshot = await getDocs(q);
-            const users: User[] = [];
-
-            snapshot.forEach((doc) => {
+            const usernameSnapshot = await getDocs(usernameQuery);
+            usernameSnapshot.forEach((doc) => {
                 const userData = doc.data();
                 const userWithId = { ...userData, id: doc.id } as User;
-
                 // Exclude existing members
                 if (!community.members.includes(userWithId.id)) {
-                    users.push(userWithId);
+                    combinedUsers[userWithId.id] = userWithId;
                 }
             });
 
-            setSearchResults(users);
+            // Also search by displayName_lowercase
+            const displayNameQuery = query(
+                usersRef,
+                orderBy('displayName_lowercase'),
+                startAt(normalizedQuery),
+                endAt(normalizedQuery + '\uf8ff')
+            );
+
+            const displayNameSnapshot = await getDocs(displayNameQuery);
+            displayNameSnapshot.forEach((doc) => {
+                const userData = doc.data();
+                const userWithId = { ...userData, id: doc.id } as User;
+                // Exclude existing members and avoid duplicates
+                if (!community.members.includes(userWithId.id) && !combinedUsers[userWithId.id]) {
+                    combinedUsers[userWithId.id] = userWithId;
+                }
+            });
+
+            setSearchResults(Object.values(combinedUsers));
         } catch (error) {
             console.error("Error searching users:", error);
+            setSearchResults([]);
         } finally {
             setLoading(false);
         }
@@ -134,7 +151,7 @@ export function InviteMemberModal({ isOpen, onClose, community }: InviteMemberMo
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Search by username..."
+                            placeholder="Search by username or name..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-9 bg-secondary/50 border-transparent focus:border-primary"
@@ -150,7 +167,7 @@ export function InviteMemberModal({ isOpen, onClose, community }: InviteMemberMo
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-10 w-10 border border-border/50">
                                             <AvatarImage src={user.photoURL} />
-                                            <AvatarFallback>{user.displayName[0]}</AvatarFallback>
+                                            <AvatarFallback>{user.displayName?.[0] || user.username?.[0] || 'U'}</AvatarFallback>
                                         </Avatar>
                                         <div>
                                             <p className="font-medium text-sm">{user.displayName}</p>

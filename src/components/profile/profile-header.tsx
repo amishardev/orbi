@@ -19,6 +19,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase-client';
 import { Badge } from '../ui/badge';
 import { FollowListModal } from './follow-list-modal';
+import { useFollowCounts } from '@/hooks/useFollowCounts';
 
 interface ProfileHeaderProps {
     user: User;
@@ -28,6 +29,9 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
     const { authUser, userData, followUser, unfollowUser } = useAuth();
     const { createOrGetChat } = useChat();
     const router = useRouter();
+
+    // Use real-time counts from subcollections (source of truth)
+    const { followersCount, followingCount, loading: countsLoading } = useFollowCounts(user?.id);
 
     const isOwnProfile = authUser?.uid === user.id;
     const [isFollowing, setIsFollowing] = useState(false);
@@ -179,20 +183,20 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                     </div>
                 </div>
 
-                {/* Stats Row - Updated to be clickable */}
+                {/* Stats Row - Using live counts from subcollections */}
                 <div className="flex items-center gap-6 text-sm text-muted-foreground mt-4">
                     <span><span className="font-bold text-foreground">{user.postsCount || 0}</span> posts</span>
                     <span
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                         onClick={() => handleStatClick('followers')}
                     >
-                        <span className="font-bold text-foreground">{user.followersCount || 0}</span> followers
+                        <span className="font-bold text-foreground">{countsLoading ? '...' : followersCount}</span> followers
                     </span>
                     <span
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                         onClick={() => handleStatClick('following')}
                     >
-                        <span className="font-bold text-foreground">{user.followingCount || 0}</span> following
+                        <span className="font-bold text-foreground">{countsLoading ? '...' : followingCount}</span> following
                     </span>
                 </div>
 

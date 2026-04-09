@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onStoryDelete = exports.onPostDelete = exports.cleanupExpiredStories = exports.getFollowersForUI = exports.initializeUserCounts = exports.toggleFollow = exports.revealAuthor = exports.createPost = exports.checkUsernameAvailability = exports.resolveUsername = exports.createUsername = exports.getRecommendations = exports.onFollowUser = void 0;
+exports.onStoryDelete = exports.onPostDelete = exports.cleanupExpiredStories = exports.getFollowersForUI = exports.initializeUserCounts = exports.toggleFollow = exports.revealAuthor = exports.createPost = exports.checkUsernameAvailability = exports.resolveUsername = exports.createUsername = exports.disableCommunityInvite = exports.getPendingJoinRequests = exports.processCommunityJoinRequest = exports.acceptCommunityInvite = exports.validateCommunityInvite = exports.generateCommunityInvite = exports.getRecommendations = exports.onFollowUser = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 // Initialize Firebase Admin
@@ -11,6 +11,14 @@ var notifications_1 = require("./notifications");
 Object.defineProperty(exports, "onFollowUser", { enumerable: true, get: function () { return notifications_1.onFollowUser; } });
 var recommendations_1 = require("./recommendations");
 Object.defineProperty(exports, "getRecommendations", { enumerable: true, get: function () { return recommendations_1.getRecommendations; } });
+// Export community invite functions
+var communityInvites_1 = require("./communityInvites");
+Object.defineProperty(exports, "generateCommunityInvite", { enumerable: true, get: function () { return communityInvites_1.generateCommunityInvite; } });
+Object.defineProperty(exports, "validateCommunityInvite", { enumerable: true, get: function () { return communityInvites_1.validateCommunityInvite; } });
+Object.defineProperty(exports, "acceptCommunityInvite", { enumerable: true, get: function () { return communityInvites_1.acceptCommunityInvite; } });
+Object.defineProperty(exports, "processCommunityJoinRequest", { enumerable: true, get: function () { return communityInvites_1.processCommunityJoinRequest; } });
+Object.defineProperty(exports, "getPendingJoinRequests", { enumerable: true, get: function () { return communityInvites_1.getPendingJoinRequests; } });
+Object.defineProperty(exports, "disableCommunityInvite", { enumerable: true, get: function () { return communityInvites_1.disableCommunityInvite; } });
 // Reserved usernames that cannot be used
 const RESERVED_USERNAMES = [
     'admin', 'api', 'p', 'assets', 'www', 'support', 'null', 'undefined',

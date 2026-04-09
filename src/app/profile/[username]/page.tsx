@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, limit, onSnapshot, doc } from 'fireb
 import type { User } from '@/lib/types';
 import { ProfileHeader } from '@/components/profile/profile-header';
 import { ProfilePosts } from '@/components/profile/profile-posts';
+import { ProfileOrbiScore } from '@/components/orbi-score/profile-widget';
 import { AppLayout } from '@/components/app-layout';
 import { Card } from '@/components/ui/card';
 import { Lock, Users } from 'lucide-react';
@@ -192,6 +193,13 @@ export default function ProfilePage() {
         <AppLayout>
             <div className="container mx-auto max-w-4xl px-0 md:px-4 py-0 md:py-8">
                 <ProfileHeader user={user} />
+
+                {/* Orbi Score Widget */}
+                {canViewProfile && (
+                    <div className="mt-6 px-4 md:px-0">
+                        <ProfileOrbiScore user={user} />
+                    </div>
+                )}
 
                 <div className="mt-6">
                     {!canViewProfile ? ( // Changed from isPrivateProfile to !canViewProfile
